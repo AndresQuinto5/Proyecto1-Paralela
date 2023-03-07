@@ -81,59 +81,83 @@ int main(int argc, char* argv[]) {
         // Calculate rainbow color values using time elapsed
         Uint8 r = (1 + sin(time_elapsed * 0.5f)) * 128;
         Uint8 g = (1 + sin(time_elapsed * 0.7f)) * 128;
-        Uint8 b = (1 + sin(time_elapsed * 1.3f)) * 128;
+        Uint8 b = (1 + sin(time_elapsed * 1.1f)) * 128;
 
-        // Set background color
+        // Set the color of the renderer to the rainbow color
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+        // Clear the renderer
         SDL_RenderClear(renderer);
 
-        // Render balls
-        SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+        // Update the positions of the balls
         for (int i = 0; i < num_balls; i++) {
-            // Update position based on velocity
             balls[i].x += balls[i].dx;
             balls[i].y += balls[i].dy;
 
-            // Handle collisions with walls
-            if (balls[i].x < BALL_RADIUS || balls[i].x > SCREEN_WIDTH - BALL_RADIUS) {
-                balls[i].dx = -balls[i].dx;
+            // Check for collisions with the walls
+            if (balls[i].x - BALL_RADIUS < 0) {
+                balls[i].x = BALL_RADIUS;
+                balls[i].dx *= -1;
             }
-            if (balls[i].y < BALL_RADIUS || balls[i].y > SCREEN_HEIGHT - BALL_RADIUS) {
-                balls[i].dy = -balls[i].dy;
+            if (balls[i].x + BALL_RADIUS > SCREEN_WIDTH) {
+                balls[i].x = SCREEN_WIDTH - BALL_RADIUS;
+                balls[i].dx *= -1;
+            }
+            if (balls[i].y - BALL_RADIUS < 0) {
+                balls[i].y = BALL_RADIUS;
+                balls[i].dy *= -1;
+            }
+            if (balls[i].y + BALL_RADIUS > SCREEN_HEIGHT) {
+                balls[i].y = SCREEN_HEIGHT - BALL_RADIUS;
+                balls[i].dy *= -1;
             }
 
-            // Draw ball
-            SDL_Rect ball_rect = { balls[i].x - BALL_RADIUS, balls[i].y - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2 };
+            // Check for collisions with other balls
+            for (int j = 0; j < num_balls; j++) {
+                if (i != j) {
+                    int dx = balls[i].x - balls[j].x;
+                    int dy = balls[i].y - balls[j].y;
+                    int distance_squared = dx*dx + dy*dy;
+                    int radius_sum = BALL_RADIUS*2;
+                    if (distance_squared < radius_sum*radius_sum) {
+                        // Collision detected
+                        balls[i].dx *= -1;
+                        balls[i].dy *= -1;
+                        balls[j].dx *= -1;
+                        balls[j].dy *= -1;
+                    }
+                }
+            }
+
+            // Draw the ball
+            SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+            SDL_Rect ball_rect = { balls[i].x - BALL_RADIUS, balls[i].y - BALL_RADIUS, BALL_RADIUS*2, BALL_RADIUS*2 };
             SDL_RenderFillRect(renderer, &ball_rect);
         }
 
-        // Render FPS counter
-        if (font) {
-            std::string fps_str = "FPS: " + std::to_string(fps);
-            SDL_Color font_color = { r, g, b, 255 };
-            SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_str.c_str(), font_color);
-            if (text_surface) {
-                SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-                SDL_Rect text_rect = { 10, 10, text_surface->w, text_surface->h };
-                SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-                SDL_FreeSurface(text_surface);
-                SDL_DestroyTexture(text_texture);
-            }
-        }
+        // Draw the FPS counter
+        std::string fps_str = "FPS: " + std::to_string(fps);
+        SDL_Color color = { r, g, b, 255 };
+        SDL_Surface* surface = TTF_RenderText_Solid(font, fps_str.c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_Rect text_rect = { 10, 10, surface->w, surface->h };
+        SDL_RenderCopy(renderer, texture, NULL, &text_rect);
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
 
-        // Update screen
+        // Present the renderer
         SDL_RenderPresent(renderer);
 
-        // Increment frame count
+        // Increment the frame count
         frame_count++;
     }
 
-    // Clean up
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    TTF_CloseFont(font);
-    TTF_Quit();
-    SDL_Quit();
+// Clean up
+SDL_DestroyRenderer(renderer);
+SDL_DestroyWindow(window);
+TTF_CloseFont(font);
+TTF_Quit();
+SDL_Quit();
 
-    return 0;
+return 0;
 }
