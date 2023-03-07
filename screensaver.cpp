@@ -30,6 +30,26 @@ int main(int argc, char* argv[]) {
     int frame_count = 0;
     int fps = 0;
 
+    // Ask user for the number of balls they want on the screen
+    int num_balls;
+    std::cout << "Enter the number of balls you want on the screen: ";
+    std::cin >> num_balls;
+
+    // Set up an array to hold the positions and velocities of each ball
+    struct Ball {
+        int x, y, dx, dy;
+    };
+    Ball balls[num_balls];
+
+    // Initialize the positions and velocities of each ball
+    srand(time(NULL));
+    for (int i = 0; i < num_balls; i++) {
+        balls[i].x = rand() % (640 - 20) + 20;
+        balls[i].y = rand() % (480 - 20) + 20;
+        balls[i].dx = rand() % 10 - 5;
+        balls[i].dy = rand() % 10 - 5;
+    }
+
     // Run the event loop
     bool quit = false;
     while (!quit) {
@@ -62,67 +82,49 @@ int main(int argc, char* argv[]) {
         SDL_SetRenderDrawColor(renderer, r, g, b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer);
 
-        // Draw ball
-        static int x = 50;
-        static int y = 50;
-        static int dx = 5;
-        static int dy = 5;
+        // Update ball positions and draw them
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-        SDL_Rect ball = {x, y, 20, 20};
-        SDL_RenderFillRect(renderer, &ball);
+        for (int i = 0; i < num_balls; i++) {
+            SDL_Rect ball = {balls[i].x, balls[i].y, 20, 20}; // Create SDL_Rect representing ball position and size
+            SDL_RenderFillRect(renderer, &ball); // Draw ball
+            balls[i].x += balls[i].dx; // Update ball position based on velocity
+            balls[i].y += balls[i].dy;
+            // If ball goes off screen, wrap around to other side
+            if (balls[i].x < 0) {
+            balls[i].x = 640 - 20;
+            }
+            if (balls[i].x > 640 - 20) {
+            balls[i].x = 0;
+            }
+            if (balls[i].y < 0) {
+            balls[i].y = 480 - 20;
+            }
+            if (balls[i].y > 480 - 20) {
+            balls[i].y = 0;
+            }
+            }
 
-        // Update ball position
-        x += dx;
-        y += dy;
-        if (x <= 0 || x + ball.w >= 640) {
-            dx = -dx;
-        }
-        if (y <= 0 || y + ball.h >= 480) {
-            dy = -dy;
-        }
+        // Draw FPS counter
+        std::string fps_text = "FPS: " + std::to_string(fps);
+        SDL_Color text_color = {255, 255, 255};
+        SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_text.c_str(), text_color);
+        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+        SDL_Rect text_rect = {0, 0, text_surface->w, text_surface->h};
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
 
-        // Draw FPS to top-left corner of screen
-        SDL_Color textColor = {255, 255, 255};
-        SDL_Surface* textSurface = TTF_RenderText_Solid(font, ("FPS: " + std::to_string(fps)).c_str(), textColor);
-        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-        SDL_Rect textRect = {0, 0, textSurface->w, textSurface->h};
-        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-
-        // Draw the ball
-        static int starting_x = 100, starting_y = 100; // starting position of the ball
-        static int velocity_x = 5, velocity_y = 5; // velocity of the ball
-        static int radius = 20; // radius of the ball
-
-        // update the position of the ball
-        starting_x += velocity_x;
-        starting_y += velocity_y;
-
-        // check if the ball hits the walls and change direction if so
-        if (x - radius < 0 || x + radius > 640) {
-            dx = -dx;
-        }
-        if (y - radius < 0 || y + radius > 480) {
-            dy = -dy;
-        }
-        // Add a 5-second delay
-        SDL_Delay(5);
-
-        // Update the screen
+        // Present renderer
         SDL_RenderPresent(renderer);
 
         // Increment frame count
         frame_count++;
     }
 
-// Clean up
-SDL_DestroyRenderer(renderer);
-SDL_DestroyWindow(window);
-SDL_Quit();
+    // Clean up
+    TTF_CloseFont(font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    SDL_Quit();
 
-// Clean up font and TTF
-TTF_CloseFont(font);
-TTF_Quit();
-
-return 0;
-
+    return 0;
 }
