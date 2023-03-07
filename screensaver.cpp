@@ -50,8 +50,16 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Clear screen with green color
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+        // Calculate time elapsed in milliseconds
+        float time_elapsed = current_time / 1000.0f;
+
+        // Calculate rainbow color values using time elapsed
+        Uint8 r = (1 + sin(time_elapsed * 0.5f)) * 128;
+        Uint8 g = (1 + sin(time_elapsed * 0.7f)) * 128;
+        Uint8 b = (1 + sin(time_elapsed * 0.9f)) * 128;
+
+        // Set background color to rainbow color
+        SDL_SetRenderDrawColor(renderer, r, g, b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer);
 
         // Draw ball
@@ -96,13 +104,6 @@ int main(int argc, char* argv[]) {
         if (y - radius < 0 || y + radius > 480) {
             dy = -dy;
         }
-
-        // draw the ball
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE); // black color for the ball
-        SDL_Rect rect = {x - radius, y - radius, radius * 2, radius * 2};
-        SDL_RenderFillRect(renderer, &rect);
-
-
         // Add a 5-second delay
         SDL_Delay(5);
 
