@@ -2,29 +2,13 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
-#include <SDL2/SDL_ttf.h>
-
-
 
 int main(int argc, char* argv[]) {
-        // Initialize TTF
-    if (TTF_Init() == -1) {
-        std::cerr << "Error initializing TTF: " << TTF_GetError() << std::endl;
-        return 1;
-    }
-
-    // Create font object
-    TTF_Font* font = TTF_OpenFont("arial.ttf", 24);
-    if (!font) {
-        std::cerr << "Error loading font: " << TTF_GetError() << std::endl;
-        return 1;
-    }
-
     // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
 
     // Create a window and renderer
-    SDL_Window* window = SDL_CreateWindow("Screensaver", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow("Ball Bouncing", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     // Initialize variables for FPS counter
@@ -32,18 +16,10 @@ int main(int argc, char* argv[]) {
     int frame_count = 0;
     int fps = 0;
 
-    // Generate random colors
-    srand(time(nullptr));
-    Uint8 r = rand() % 256;
-    Uint8 g = rand() % 256;
-    Uint8 b = rand() % 256;
-
-    // Fill the screen with random color
-    SDL_SetRenderDrawColor(renderer, r, g, b, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
-
-    // Update the screen
-    SDL_RenderPresent(renderer);
+    // Initialize variables for ball movement
+    int x = 320, y = 240;
+    int x_speed = 5, y_speed = 5;
+    int ball_size = 20;
 
     // Run the event loop
     bool quit = false;
@@ -65,22 +41,25 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Draw random color to screen
-        r = rand() % 256;
-        g = rand() % 256;
-        b = rand() % 256;
-        SDL_SetRenderDrawColor(renderer, r, g, b, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(renderer);
+        // Move the ball
+        x += x_speed;
+        y += y_speed;
 
-        // Draw FPS to top-left corner of screen
-        SDL_Color textColor = {255, 255, 255};
-        SDL_Surface* textSurface = TTF_RenderText_Solid(font, ("FPS: " + std::to_string(fps)).c_str(), textColor);
-        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-        SDL_Rect textRect = {0, 0, textSurface->w, textSurface->h};
-        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+        // Bounce the ball off the edges of the screen
+        if (x < 0 || x > 640 - ball_size) {
+            x_speed = -x_speed;
+        }
+        if (y < 0 || y > 480 - ball_size) {
+            y_speed = -y_speed;
+        }
 
-        // Add a 5-second delay
-        SDL_Delay(5000);
+        // Draw the ball
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+        SDL_Rect ball_rect = {x, y, ball_size, ball_size};
+        SDL_RenderFillRect(renderer, &ball_rect);
+
+        // Add a 5ms delay to simulate 200 FPS
+        SDL_Delay(5);
 
         // Update the screen
         SDL_RenderPresent(renderer);
@@ -93,9 +72,6 @@ int main(int argc, char* argv[]) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-        // Clean up font and TTF
-    TTF_CloseFont(font);
-    TTF_Quit();
 
     return 0;
 }
