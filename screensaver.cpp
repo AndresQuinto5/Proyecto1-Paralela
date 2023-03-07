@@ -83,48 +83,53 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
 
         // Update ball positions and draw them
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255,SDL_ALPHA_OPAQUE);
         for (int i = 0; i < num_balls; i++) {
-            SDL_Rect ball = {balls[i].x, balls[i].y, 20, 20}; // Create SDL_Rect representing ball position and size
-            SDL_RenderFillRect(renderer, &ball); // Draw ball
-            balls[i].x += balls[i].dx; // Update ball position based on velocity
-            balls[i].y += balls[i].dy;
-            // If ball goes off screen, wrap around to other side
-            if (balls[i].x < 0) {
-            balls[i].x = 640 - 20;
-            }
-            if (balls[i].x > 640 - 20) {
-            balls[i].x = 0;
-            }
-            if (balls[i].y < 0) {
-            balls[i].y = 480 - 20;
-            }
-            if (balls[i].y > 480 - 20) {
-            balls[i].y = 0;
-            }
-            }
+        // Update ball position
+        balls[i].x += balls[i].dx;
+        balls[i].y += balls[i].dy;
+                // Handle ball-wall collisions
+        if (balls[i].x < 0 || balls[i].x > 640 - 20) {
+            balls[i].dx *= -1;
+        }
+        if (balls[i].y < 0 || balls[i].y > 480 - 20) {
+            balls[i].dy *= -1;
+        }
 
-        // Draw FPS counter
-        std::string fps_text = "FPS: " + std::to_string(fps);
-        SDL_Color text_color = {255, 255, 255};
-        SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_text.c_str(), text_color);
-        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-        SDL_Rect text_rect = {0, 0, text_surface->w, text_surface->h};
-        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-
-        // Present renderer
-        SDL_RenderPresent(renderer);
-
-        // Increment frame count
-        frame_count++;
+        // Draw ball
+        SDL_Rect ball_rect = { balls[i].x, balls[i].y, 20, 20 };
+        SDL_RenderFillRect(renderer, &ball_rect);
     }
 
-    // Clean up
+        // Draw FPS counter
+        SDL_Color text_color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
+        std::string fps_text = "FPS: " + std::to_string(fps);
+        SDL_Surface* text_surface = TTF_RenderText_Solid(font, fps_text.c_str(), text_color);
+        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+        SDL_Rect text_rect = { 10, 10, text_surface->w, text_surface->h };
+        SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+        SDL_FreeSurface(text_surface);
+        SDL_DestroyTexture(text_texture);
+
+        // Update the screen
+        SDL_RenderPresent(renderer);
+
+        // Increase frame count
+        frame_count++;
+
+        // Delay to achieve desired FPS
+        Uint32 end_time = SDL_GetTicks();
+        Uint32 frame_time = end_time - current_time;
+        if (frame_time < 1000 / 60) {
+            SDL_Delay(1000 / 60 - frame_time);
+        }
+    }
+
+    // Clean up resources and quit
     TTF_CloseFont(font);
+    TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    TTF_Quit();
     SDL_Quit();
-
     return 0;
 }
