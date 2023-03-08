@@ -37,8 +37,19 @@ int main(int argc, char* argv[]) {
 
     // Ask user for the number of balls they want on the screen
     int num_balls;
-    std::cout << "Enter the number of balls you want on the screen: ";
-    std::cin >> num_balls;
+    std::string input;
+    bool valid_input = false;
+    while (!valid_input) {
+        std::cout << "Enter the number of balls you want on the screen (must be greater than 0): ";
+        std::cin >> num_balls;
+        if (std::cin.fail() || num_balls <= 0) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "Invalid input. Please enter a positive integer greater than 0." << std::endl;
+        } else {
+            valid_input = true;
+        }
+    }
 
     // Set up an array to hold the positions and velocities of each ball
     struct Ball {
