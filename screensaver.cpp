@@ -61,9 +61,10 @@ int main(int argc, char* argv[]) {
     srand(time(NULL));
     for (int i = 0; i < num_balls; i++) {
         balls[i].x = rand() % (SCREEN_WIDTH - BALL_RADIUS*2) + BALL_RADIUS;
-        balls[i].y = rand() % (SCREEN_HEIGHT - BALL_RADIUS*2) + BALL_RADIUS;
-        balls[i].dx = rand() % 10 - 5;
-        balls[i].dy = rand() % 10 - 5;
+        balls[i].y = 0;
+        balls[i].dx = 0;
+        balls[i].dy = 9.81; // gravity
+
     }
 
     // Run the event loop
@@ -128,20 +129,22 @@ int main(int argc, char* argv[]) {
                 if (i != j) {
                     int dx = balls[i].x - balls[j].x;
                     int dy = balls[i].y - balls[j].y;
-                    int distance_squared = dx*dx + dy*dy;
-                    int radius_sum = BALL_RADIUS*2;
-                    if (distance_squared < radius_sum*radius_sum) {
+                    int distance_squared = dx * dx + dy * dy;
+                    if (distance_squared < (BALL_RADIUS * 2) * (BALL_RADIUS * 2)) {
                         // Collision detected
-                        balls[i].dx *= -1;
-                        balls[i].dy *= -1;
-                        balls[j].dx *= -1;
-                        balls[j].dy *= -1;
+                        int temp_dx = balls[i].dx;
+                        int temp_dy = balls[i].dy;
+                        balls[i].dx = balls[j].dx;
+                        balls[i].dy = balls[j].dy;
+                        balls[j].dx = temp_dx;
+                        balls[j].dy = temp_dy;
                     }
                 }
             }
 
             // Draw the ball
             SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+            SDL_RenderDrawPoint(renderer, balls[i].x, balls[i].y);
             SDL_Rect ball_rect = { balls[i].x - BALL_RADIUS, balls[i].y - BALL_RADIUS, BALL_RADIUS*2, BALL_RADIUS*2 };
             SDL_RenderFillRect(renderer, &ball_rect);
         }
