@@ -8,8 +8,9 @@
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 const int BALL_RADIUS = 10;
-const float GRAVITY = 500.0f; // pixels per second squared
-const float BOUNCE_FACTOR = 0.8f;
+const float GRAVITY = 300.0f; // pixels per second squared
+const float BOUNCE_FACTOR = 0.6f;
+
 
 int main(int argc, char* argv[]) {
     // Initialize TTF
@@ -55,7 +56,7 @@ int main(int argc, char* argv[]) {
 
     // Set up an array to hold the positions and velocities of each ball
     struct Ball {
-        int x, y, dx, dy;
+        int x, y, dx, dy, bounces;
     };
     Ball balls[num_balls];
 
@@ -66,6 +67,7 @@ int main(int argc, char* argv[]) {
     balls[i].y = BALL_RADIUS;
     balls[i].dx = rand() % 400 - 200;
     balls[i].dy = rand() % 400 - 200;
+    balls[i].bounces = 0;
     }
 
         // Main loop
@@ -106,7 +108,26 @@ int main(int argc, char* argv[]) {
             } else if (balls[i].y + BALL_RADIUS > SCREEN_HEIGHT) {
                 balls[i].y = SCREEN_HEIGHT - BALL_RADIUS;
                 balls[i].dy = -balls[i].dy * BOUNCE_FACTOR;
+                balls[i].bounces++;
             }
+            if (balls[i].bounces > 10) {
+                // Remove the ball from the array by shifting all subsequent elements back by one
+                for (int j = i; j < num_balls - 1; j++) {
+                    balls[j] = balls[j + 1];
+                }
+                num_balls--;
+                
+                // Generate a new ball with the initial parameters
+                Ball new_ball;
+                new_ball.x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
+                new_ball.y = BALL_RADIUS;
+                new_ball.dx = rand() % 400 - 200;
+                new_ball.dy = rand() % 400 - 200;
+                new_ball.bounces = 0;
+                balls[num_balls] = new_ball;
+                num_balls++;
+            }
+            
 
             // Draw the ball
             SDL_Rect rect = {balls[i].x - BALL_RADIUS, balls[i].y - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2};
