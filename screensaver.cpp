@@ -8,8 +8,49 @@
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 const int BALL_RADIUS = 30;
-const float GRAVITY = 300.0f; // pixels per second squared
+const float GRAVITY = 300.0f;
 const float BOUNCE_FACTOR = 0.8f;
+const float BALL_COLLISION_FACTOR = 1.0f;
+
+struct Ball {
+    int x, y, dx, dy, bounces, radius;
+    Uint8 r, g, b;
+};
+
+bool useBallCollision(Ball &ball1, Ball &ball2) {
+    int dx = ball1.x - ball2.x;
+    int dy = ball1.y - ball2.y;
+    int distance = std::sqrt(dx * dx + dy * dy);
+    return distance <= ball1.radius + ball2.radius;
+}
+
+void ballCollisionManager(Ball &ball1, Ball &ball2) {
+    int dx = ball1.x - ball2.x;
+    int dy = ball1.y - ball2.y;
+    float distance = std::sqrt(dx * dx + dy * dy);
+
+    if (distance == 0.0f) {
+        return;
+    }
+
+    float overlap = ball1.radius + ball2.radius - distance;
+    float nx = dx / distance;
+    float ny = dy / distance;
+
+    ball1.x += nx * overlap / 2;
+    ball1.y += ny * overlap / 2;
+    ball2.x -= nx * overlap / 2;
+    ball2.y -= ny * overlap / 2;
+
+    float relativeVelocityX = ball1.dx - ball2.dx;
+    float relativeVelocityY = ball1.dy - ball2.dy;
+    float impulse = (relativeVelocityX * nx + relativeVelocityY * ny) * BALL_COLLISION_FACTOR;
+
+    ball1.dx -= nx * impulse;
+    ball1.dy -= ny * impulse;
+    ball2.dx += nx * impulse;
+    ball2.dy += ny * impulse;
+}
 
 
 int main(int argc, char* argv[]) {
@@ -55,10 +96,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Set up an array to hold the positions and velocities of each ball
-    struct Ball {
-        int x, y, dx, dy, bounces, radius;
-        Uint8 r, g, b;
-    };
+
     Ball balls[num_balls];
 
     // Initialize the positions and velocities of each ball
@@ -75,19 +113,19 @@ int main(int argc, char* argv[]) {
     balls[i].b = rand() % 256;
     }
 
-        // Main loop
-    bool quit = false;
-    while (!quit) {
-        // Handle events
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
-            }
+// Main loop
+bool quit = false;
+while (!quit) {
+    // Handle events
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) {
+            quit = true;
         }
-        // Clear the screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+    }
+    // Clear the screen
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
     // Draw the balls
     for (int i = 0; i < num_balls; i++) {
         // Update position
@@ -104,6 +142,12 @@ int main(int argc, char* argv[]) {
         } else if (balls[i].x + balls[i].radius > SCREEN_WIDTH) {
             balls[i].x = SCREEN_WIDTH - balls[i].radius;
             balls[i].dx = -balls[i].dx * BOUNCE_FACTOR;
+        }
+        // Handle ball collisions
+        for (int j = i + 1; j < num_balls; j++) {
+            if (useBallCollision(balls[i], balls[j])) {
+                ballCollisionManager(balls[i], balls[j]);
+            }
         }
         if (balls[i].y - balls[i].radius < 0) {
             balls[i].y = balls[i].radius;
