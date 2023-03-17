@@ -8,9 +8,9 @@
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 const int BALL_RADIUS = 30;
-const float GRAVITY = 300.0f;
-const float BOUNCE_FACTOR = 0.8f;
-const float BALL_COLLISION_FACTOR = 1.0f;
+const float GRAVITY = 200.0f;
+const float BOUNCE_FACTOR = 0.6f;
+const float BALL_COLLISION_FACTOR = 0.6f;
 
 struct Ball {
     int x, y, dx, dy, bounces, radius;
@@ -20,16 +20,21 @@ struct Ball {
 bool useBallCollision(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
-    int distance = std::sqrt(dx * dx + dy * dy);
-    return distance <= ball1.radius + ball2.radius;
+    int distanceSquared = dx * dx + dy * dy;
+    return distanceSquared <= (ball1.radius + ball2.radius) * (ball1.radius + ball2.radius);
 }
+
 
 void ballCollisionManager(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
-    float distance = std::sqrt(dx * dx + dy * dy);
+    float distance = hypot(dx, dy);
 
     if (distance == 0.0f) {
+        return;
+    }
+    if (std::isnan(distance)) {
+        std::cerr << "Error: invalid distance value: dx = " << dx << ", dy = " << dy << std::endl;
         return;
     }
 
@@ -50,6 +55,12 @@ void ballCollisionManager(Ball &ball1, Ball &ball2) {
     ball1.dy -= ny * impulse;
     ball2.dx += nx * impulse;
     ball2.dy += ny * impulse;
+
+    // Add the size reduction feature for the two balls colliding
+    if (ball1.radius > BALL_RADIUS/2 && ball2.radius > BALL_RADIUS/2) {
+        ball1.radius *= BOUNCE_FACTOR;
+        ball2.radius *= BOUNCE_FACTOR;
+    }
 }
 
 
@@ -131,6 +142,7 @@ while (!quit) {
         // Update position
         balls[i].x += balls[i].dx / 60;
         balls[i].y += balls[i].dy / 60;
+        
 
         // Apply gravity
         balls[i].dy += GRAVITY / 60;
@@ -163,6 +175,40 @@ while (!quit) {
             balls[i].dx *= 1.2;
             balls[i].dy *= 1.2;
         }
+        // Check if the ball has collided with the edges of the screen
+        if (balls[i].x < balls[i].radius || balls[i].x > SCREEN_WIDTH - balls[i].radius) {
+            balls[i].dx = -balls[i].dx * BOUNCE_FACTOR;
+            if (fps != 0){
+
+
+                balls[i].x += balls[i].dx / fps;
+            }
+            balls[i].bounces++;
+        }
+        if (balls[i].y < balls[i].radius) {
+            balls[i].dy = -balls[i].dy * BOUNCE_FACTOR;
+            if (fps != 0){
+                balls[i].y += balls[i].dy / fps;
+            }
+            balls[i].bounces++;
+        }
+        if (balls[i].y > SCREEN_HEIGHT - balls[i].radius) {
+            balls[i].dy = -balls[i].dy * BOUNCE_FACTOR;
+            if (fps != 0){
+                balls[i].y += balls[i].dy / fps;
+            }
+            balls[i].bounces++;
+        }
+
+        // Check if the ball has bounced too many times
+        if (balls[i].bounces >= 3) {
+            // Reset the position and velocity of the ball
+            balls[i].x = rand() % (SCREEN_WIDTH / 2) + SCREEN_WIDTH / 4;
+            balls[i].y = rand() % (SCREEN_HEIGHT / 2) + SCREEN_HEIGHT / 4;
+            balls[i].dx = rand() % 400 - 200;
+            balls[i].dy = rand() % 400 - 200;
+            balls[i].bounces = 0;
+        }
         if (balls[i].bounces > 10 || balls[i].radius <= 0) {
             // Remove the ball from the array by shifting all subsequent elements back by one
             for (int j = i; j < num_balls - 1; j++) {
@@ -188,18 +234,25 @@ while (!quit) {
 
         // Draw the ball
         SDL_SetRenderDrawColor(renderer, balls[i].r, balls[i].g, balls[i].b, 255);
-        SDL_Rect rect = {balls[i].x - balls[i].radius, balls[i].y - balls[i].radius, balls[i].radius * 2, balls[i].radius * 2};
-        SDL_RenderFillRect(renderer, &rect);
+        SDL_Rect ball_rect = { balls[i].x - balls[i].radius, balls[i].y - balls[i].radius, balls[i].radius * 2, balls[i].radius * 2 };
+        SDL_RenderFillRect(renderer, &ball_rect);
+
+        for (int j = i + 1; j < num_balls; j++) {
+            if (useBallCollision(balls[i], balls[j])) {
+                ballCollisionManager(balls[i], balls[j]);
+            }
+        }
     }
 
     // Draw the FPS counter
     frame_count++;
-    Uint32 current_time = SDL_GetTicks();
-    if (current_time > start_time + 1000) {
+    Uint32 elapsed_time = SDL_GetTicks() - start_time;
+    if (elapsed_time >= 1000) {
         fps = frame_count;
         frame_count = 0;
-        start_time = current_time;
+        start_time = SDL_GetTicks();
     }
+
     SDL_Color color = {255, 255, 255};
     std::string fps_text = "FPS: " + std::to_string(fps);
     SDL_Surface* surface = TTF_RenderText_Solid(font, fps_text.c_str(), color);
