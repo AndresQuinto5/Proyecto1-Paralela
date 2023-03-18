@@ -24,6 +24,22 @@ bool useBallCollision(Ball &ball1, Ball &ball2) {
     return distanceSquared <= (ball1.radius + ball2.radius) * (ball1.radius + ball2.radius);
 }
 
+void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
+    const int num_points = 5;
+    const double angle = 2 * M_PI / num_points;
+    SDL_Point points[num_points * 2 + 1];
+
+    for (int i = 0; i < num_points * 2; i += 2) {
+        points[i].x = x + radius * cos(i / 2 * angle);
+        points[i].y = y + radius * sin(i / 2 * angle);
+        points[i + 1].x = x + (radius / 2) * cos((i / 2) * angle + angle / 2);
+        points[i + 1].y = y + (radius / 2) * sin((i / 2) * angle + angle / 2);
+    }
+
+    points[num_points * 2] = points[0];
+    SDL_RenderDrawLines(renderer, points, num_points * 2 + 1);
+}
+
 
 void ballCollisionManager(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
@@ -60,6 +76,13 @@ void ballCollisionManager(Ball &ball1, Ball &ball2) {
     if (ball1.radius > BALL_RADIUS/2 && ball2.radius > BALL_RADIUS/2) {
         ball1.radius *= BOUNCE_FACTOR;
         ball2.radius *= BOUNCE_FACTOR;
+        // Cambiar el color de las bolas cuando colisionan
+        ball1.r = rand() % 256;
+        ball1.g = rand() % 256;
+        ball1.b = rand() % 256;
+        ball2.r = rand() % 256;
+        ball2.g = rand() % 256;
+        ball2.b = rand() % 256;
     }
 }
 
@@ -164,6 +187,7 @@ while (!quit) {
         if (balls[i].y - balls[i].radius < 0) {
             balls[i].y = balls[i].radius;
             balls[i].dy = -balls[i].dy * BOUNCE_FACTOR;
+
         } else if (balls[i].y + balls[i].radius > SCREEN_HEIGHT) {
             balls[i].y = SCREEN_HEIGHT - balls[i].radius;
             balls[i].dy = -balls[i].dy * BOUNCE_FACTOR;
@@ -198,6 +222,10 @@ while (!quit) {
                 balls[i].y += balls[i].dy / fps;
             }
             balls[i].bounces++;
+        }
+        float friction = 0.98f;
+        if (balls[i].y + balls[i].radius >= SCREEN_HEIGHT) {
+            balls[i].dx *= friction;
         }
 
         // Check if the ball has bounced too many times
@@ -234,8 +262,9 @@ while (!quit) {
 
         // Draw the ball
         SDL_SetRenderDrawColor(renderer, balls[i].r, balls[i].g, balls[i].b, 255);
-        SDL_Rect ball_rect = { balls[i].x - balls[i].radius, balls[i].y - balls[i].radius, balls[i].radius * 2, balls[i].radius * 2 };
-        SDL_RenderFillRect(renderer, &ball_rect);
+        //SDL_Rect ball_rect = { balls[i].x - balls[i].radius, balls[i].y - balls[i].radius, balls[i].radius * 2, balls[i].radius * 2 };
+        //SDL_RenderFillRect(renderer, &ball_rect);
+        drawStar(renderer, balls[i].x, balls[i].y, balls[i].radius);
 
         for (int j = i + 1; j < num_balls; j++) {
             if (useBallCollision(balls[i], balls[j])) {
