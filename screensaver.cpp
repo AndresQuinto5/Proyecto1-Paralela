@@ -17,6 +17,7 @@ struct Ball {
     Uint8 r, g, b;
 };
 
+//verifica si dos bolas (ball1 y ball2) han colisionado y devuelve true si es así, de lo contrario devuelve false.
 bool useBallCollision(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
@@ -24,6 +25,7 @@ bool useBallCollision(Ball &ball1, Ball &ball2) {
     return distanceSquared <= (ball1.radius + ball2.radius) * (ball1.radius + ball2.radius);
 }
 
+//Dibujamos estrellas en lugar de cuadrados
 void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
     const int num_points = 5;
     const double angle = 2 * M_PI / num_points;
@@ -40,7 +42,12 @@ void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
     SDL_RenderDrawLines(renderer, points, num_points * 2 + 1);
 }
 
+/*
 
+se encarga de manejar la colisión entre dos bolas. Actualiza las velocidades y posiciones de las bolas después de la colisión 
+y también implementa la funcionalidad para reducir el tamaño de las bolas después de la colisión.
+
+*/
 void ballCollisionManager(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
@@ -86,7 +93,6 @@ void ballCollisionManager(Ball &ball1, Ball &ball2) {
     }
 }
 
-
 int main(int argc, char* argv[]) {
     // Initialize TTF
     if (TTF_Init() == -1) {
@@ -130,9 +136,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Set up an array to hold the positions and velocities of each ball
-
     Ball balls[num_balls];
-
     // Initialize the positions and velocities of each ball
     srand(time(0)); // Seed the random number generator with 0
     for (int i = 0; i < num_balls; i++) {
