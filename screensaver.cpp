@@ -12,13 +12,20 @@ const float GRAVITY = 200.0f;
 const float BOUNCE_FACTOR = 0.6f;
 const float BALL_COLLISION_FACTOR = 0.6f;
 
+Uint32 start_time_collision = SDL_GetTicks();
+
 struct Ball {
     int x, y, dx, dy, bounces, radius;
     Uint8 r, g, b;
+    Uint32 start_time_collision;
+
 };
 
 //verifica si dos bolas (ball1 y ball2) han colisionado y devuelve true si es así, de lo contrario devuelve false.
-bool useBallCollision(Ball &ball1, Ball &ball2) {
+bool useBallCollision(Ball &ball1, Ball &ball2, bool ignoreCollision) {
+    if (ignoreCollision) {
+        return false;
+    }
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
     int distanceSquared = dx * dx + dy * dy;
@@ -91,6 +98,8 @@ void ballCollisionManager(Ball &ball1, Ball &ball2) {
         ball2.g = rand() % 256;
         ball2.b = rand() % 256;
     }
+    ball1.start_time_collision = SDL_GetTicks();
+    ball2.start_time_collision = SDL_GetTicks();
 }
 
 int main(int argc, char* argv[]) {
@@ -140,15 +149,17 @@ int main(int argc, char* argv[]) {
     // Initialize the positions and velocities of each ball
     srand(time(0)); // Seed the random number generator with 0
     for (int i = 0; i < num_balls; i++) {
-    balls[i].x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
-    balls[i].y = BALL_RADIUS;
-    balls[i].dx = rand() % 400 - 200;
-    balls[i].dy = rand() % 400 - 200;
-    balls[i].bounces = 0;
-    balls[i].radius = BALL_RADIUS;
-    balls[i].r = rand() % 256;
-    balls[i].g = rand() % 256;
-    balls[i].b = rand() % 256;
+        balls[i].x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
+        balls[i].y = BALL_RADIUS;
+        balls[i].dx = rand() % 400 - 200;
+        balls[i].dy = rand() % 400 - 200;
+        balls[i].bounces = 0;
+        balls[i].radius = BALL_RADIUS;
+        balls[i].r = rand() % 256;
+        balls[i].g = rand() % 256;
+        balls[i].b = rand() % 256;
+        balls[i].start_time_collision = SDL_GetTicks();
+
     }
 
 // Main loop
@@ -161,6 +172,9 @@ while (!quit) {
             quit = true;
         }
     }
+    Uint32 elapsed_time_collision = SDL_GetTicks() - start_time_collision;
+    bool ignoreCollision = elapsed_time_collision < 3000;
+
     // Clear the screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
@@ -184,7 +198,13 @@ while (!quit) {
         }
         // Handle ball collisions
         for (int j = i + 1; j < num_balls; j++) {
-            if (useBallCollision(balls[i], balls[j])) {
+            Uint32 elapsed_time_collision_i = SDL_GetTicks() - balls[i].start_time_collision;
+            Uint32 elapsed_time_collision_j = SDL_GetTicks() - balls[j].start_time_collision;
+            bool ignoreCollision_i = elapsed_time_collision_i < 3000;
+            bool ignoreCollision_j = elapsed_time_collision_j < 3000;
+            bool ignoreCollision = ignoreCollision_i || ignoreCollision_j;
+            
+            if (useBallCollision(balls[i], balls[j], ignoreCollision)) {
                 ballCollisionManager(balls[i], balls[j]);
             }
         }
@@ -271,7 +291,7 @@ while (!quit) {
         drawStar(renderer, balls[i].x, balls[i].y, balls[i].radius);
 
         for (int j = i + 1; j < num_balls; j++) {
-            if (useBallCollision(balls[i], balls[j])) {
+            if (useBallCollision(balls[i], balls[j], ignoreCollision)) {
                 ballCollisionManager(balls[i], balls[j]);
             }
         }
