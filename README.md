@@ -33,7 +33,7 @@ sudo apt-get install libsdl2-dev libsdl2-ttf-dev libomp-dev
 Compile el programa usando g++ y enlace las bibliotecas apropiadas:
 
 ```sh
-g++ screensaver.cpp -o screensaver -lSDL2 -lSDL2_ttf -fopenmp
+g++ screensaverParallel.cpp -o screensaver -lSDL2 -lSDL2_ttf -fopenmp
 ```
 ## Ejecución
 ```sh
