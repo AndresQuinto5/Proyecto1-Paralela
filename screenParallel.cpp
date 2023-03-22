@@ -5,17 +5,16 @@
 #include <SDL2/SDL_ttf.h>
 #include <cmath>
 #include <omp.h>
-#include <vector> // uso de memoria dinamica
+
 
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 const int BALL_RADIUS = 30;
 const float GRAVITY = 200.0f;
 const float BOUNCE_FACTOR = 0.6f;
-const float BALL_COLLISION_FACTOR = 0.6f;
+const float BALL_COLLISION_FACTOR = 0.8f;
 
 Uint32 start_time_collision = SDL_GetTicks();
-
 struct Ball {
     int x, y, dx, dy, bounces, radius;
     Uint8 r, g, b;
@@ -23,12 +22,6 @@ struct Ball {
 
 };
 
-struct DrawData {
-    int x, y, radius;
-    Uint8 r, g, b;
-};
-
-//verifica si dos bolas (ball1 y ball2) han colisionado y devuelve true si es así, de lo contrario devuelve false.
 bool useBallCollision(Ball &ball1, Ball &ball2, bool ignoreCollision) {
     if (ignoreCollision) {
         return false;
@@ -39,8 +32,6 @@ bool useBallCollision(Ball &ball1, Ball &ball2, bool ignoreCollision) {
     return distanceSquared <= (ball1.radius + ball2.radius) * (ball1.radius + ball2.radius);
 }
 
-
-//Dibujamos estrellas en lugar de cuadrados
 void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
     const int num_points = 5;
     const double angle = 2 * M_PI / num_points;
@@ -57,12 +48,11 @@ void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
     SDL_RenderDrawLines(renderer, points, num_points * 2 + 1);
 }
 
-/*
+struct Collision {
+    int id1, id2;
+    Uint32 timestamp;
+};
 
-se encarga de manejar la colisión entre dos bolas. Actualiza las velocidades y posiciones de las bolas después de la colisión 
-y también implementa la funcionalidad para reducir el tamaño de las bolas después de la colisión.
-
-*/
 void ballCollisionManager(Ball &ball1, Ball &ball2) {
     int dx = ball1.x - ball2.x;
     int dy = ball1.y - ball2.y;
@@ -111,61 +101,41 @@ void ballCollisionManager(Ball &ball1, Ball &ball2) {
 }
 
 int main(int argc, char* argv[]) {
-    // Initialize TTF
     if (TTF_Init() == -1) {
         std::cerr << "Error initializing TTF: " << TTF_GetError() << std::endl;
         return 1;
     }
 
-    // Create font object
     TTF_Font* font = TTF_OpenFont("arial.ttf", 24);
     if (!font) {
         std::cerr << "Error loading font: " << TTF_GetError() << std::endl;
         return 1;
     }
 
-    // Initialize SDL
     SDL_Init(SDL_INIT_VIDEO);
 
-    // Create a window and renderer
     SDL_Window* window = SDL_CreateWindow("Screensaver", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    // Initialize variables for FPS counter
     Uint32 start_time = SDL_GetTicks();
     int frame_count = 0;
     int fps = 0;
-
-    // Ask user for the number of balls they want on the screen
     int num_balls;
-    int num_threads;
-
     std::string input;
     bool valid_input = false;
     while (!valid_input) {
         std::cout << "Enter the number of balls you want on the screen (must be greater than 0): ";
         std::cin >> num_balls;
-
-        std::cout << "Enter the number of threads you want to use (must be greater than 0 for example 2,4,6,8): ";
-        std::cin >> num_threads;
-        omp_set_num_threads(num_threads); //select the number of threads
         if (std::cin.fail() || num_balls <= 0) {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             std::cout << "Invalid input. Please enter a positive integer greater than 0." << std::endl;
-        } 
-        else if (std::cin.fail() || num_threads <= 0 || num_threads > 8) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid input. Please enter a positive integer greater than 0. or select a number of threads no more than 8" << std::endl;
         } else {
             valid_input = true;
         }
     }
 
-    // Set up an array to hold the positions and velocities of each ball
-    Ball balls[num_balls];
-    // Initialize the positions and velocities of each ball
+    Ball* balls = new Ball[num_balls];
     srand(time(0)); // Seed the random number generator with 0
     for (int i = 0; i < num_balls; i++) {
         balls[i].x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
@@ -181,42 +151,33 @@ int main(int argc, char* argv[]) {
 
     }
 
-    /*
-        Contador de frames avg
-
-    */
-    int total_frames = 0;
-    Uint32 program_start_time = SDL_GetTicks();
-    // Main loop
-    bool quit = false;
-    while (!quit) {
-        // Handle events
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
-            }
+// Main loop
+bool quit = false;
+while (!quit) {
+    // Handle events
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) {
+            quit = true;
         }
-        Uint32 elapsed_time_collision = SDL_GetTicks() - start_time_collision;
-        bool ignoreCollision = elapsed_time_collision < 3000;
+    }
+    Uint32 elapsed_time_collision = SDL_GetTicks() - start_time_collision;
+    bool ignoreCollision = elapsed_time_collision < 5000;
 
-        // Clear the screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    int num_threads = 4; // Cambia este valor para ajustar la cantidad de hilos utilizados
 
-        std::vector<DrawData> draw_data(num_balls); // uso de memoria dinamica
-        
-        // Draw the balls
-        #pragma omp parallel for
-        for (int i = 0; i < num_balls; i++) {
-            int thread_id = omp_get_thread_num();
-            std::cout << "Thread ID: " << thread_id << std::endl;
-            // Update position
+    #pragma omp parallel num_threads(num_threads)
+    {
+        int thread_id = omp_get_thread_num();
+        int start = thread_id * num_balls / num_threads;
+        int end = (thread_id + 1) * num_balls / num_threads;
+    
+        for (int i = start; i < end; i++) {
             balls[i].x += balls[i].dx / 60;
             balls[i].y += balls[i].dy / 60;
-            
 
-            // Apply gravity
             balls[i].dy += GRAVITY / 60;
 
             // Handle wall collisions
@@ -228,16 +189,14 @@ int main(int argc, char* argv[]) {
                 balls[i].dx = -balls[i].dx * BOUNCE_FACTOR;
             }
             // Handle ball collisions
-            #pragma omp parallel for schedule(dynamic)
             for (int j = i + 1; j < num_balls; j++) {
                 Uint32 elapsed_time_collision_i = SDL_GetTicks() - balls[i].start_time_collision;
                 Uint32 elapsed_time_collision_j = SDL_GetTicks() - balls[j].start_time_collision;
-                bool ignoreCollision_i = elapsed_time_collision_i < 3000;
-                bool ignoreCollision_j = elapsed_time_collision_j < 3000;
+                bool ignoreCollision_i = elapsed_time_collision_i < 5000;
+                bool ignoreCollision_j = elapsed_time_collision_j < 5000;
                 bool ignoreCollision = ignoreCollision_i || ignoreCollision_j;
                 
                 if (useBallCollision(balls[i], balls[j], ignoreCollision)) {
-                    #pragma omp critical
                     ballCollisionManager(balls[i], balls[j]);
                 }
             }
@@ -260,8 +219,6 @@ int main(int argc, char* argv[]) {
             if (balls[i].x < balls[i].radius || balls[i].x > SCREEN_WIDTH - balls[i].radius) {
                 balls[i].dx = -balls[i].dx * BOUNCE_FACTOR;
                 if (fps != 0){
-
-
                     balls[i].x += balls[i].dx / fps;
                 }
                 balls[i].bounces++;
@@ -285,7 +242,6 @@ int main(int argc, char* argv[]) {
                 balls[i].dx *= friction;
             }
 
-            // Check if the ball has bounced too many times
             if (balls[i].bounces >= 3) {
                 // Reset the position and velocity of the ball
                 balls[i].x = rand() % (SCREEN_WIDTH / 2) + SCREEN_WIDTH / 4;
@@ -295,65 +251,45 @@ int main(int argc, char* argv[]) {
                 balls[i].bounces = 0;
             }
             if (balls[i].bounces > 10 || balls[i].radius <= 0) {
-                // Remove the ball from the array by shifting all subsequent elements back by one
+                // Guardar la bola eliminada para reutilizarla en el futuro
+                Ball removed_ball = balls[i];
                 for (int j = i; j < num_balls - 1; j++) {
                     balls[j] = balls[j + 1];
                 }
                 num_balls--;
                 
-                // Generate a new ball with the initial parameters
-                Ball new_ball;
-                new_ball.x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
-                new_ball.y = BALL_RADIUS;
-                new_ball.dx = rand() % 400 - 200;
-                new_ball.dy = rand() % 400 - 200;
-                new_ball.bounces = 0;
-                new_ball.radius = BALL_RADIUS;
-                new_ball.r = rand() % 256;
-                new_ball.g = rand() % 256;
-                new_ball.b = rand() % 256;
-                balls[num_balls] = new_ball;
+                // Reutilizar la bola eliminada
+                removed_ball.x = rand() % (SCREEN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
+                removed_ball.y = BALL_RADIUS;
+                removed_ball.dx = rand() % 400 - 200;
+                removed_ball.dy = rand() % 400 - 200;
+                removed_ball.bounces = 0;
+                removed_ball.radius = BALL_RADIUS;
+                removed_ball.r = rand() % 256;
+                removed_ball.g = rand() % 256;
+                removed_ball.b = rand() % 256;
+                balls[num_balls] = removed_ball;
                 num_balls++;
             }
             
-
-            // Draw the ball
             SDL_SetRenderDrawColor(renderer, balls[i].r, balls[i].g, balls[i].b, 255);
-            //SDL_Rect ball_rect = { balls[i].x - balls[i].radius, balls[i].y - balls[i].radius, balls[i].radius * 2, balls[i].radius * 2 };
-            //SDL_RenderFillRect(renderer, &ball_rect);
-            //drawStar(renderer, balls[i].x, balls[i].y, balls[i].radius);
-            draw_data[i].x = balls[i].x;
-            draw_data[i].y = balls[i].y;
-            draw_data[i].radius = balls[i].radius;
-            draw_data[i].r = balls[i].r;
-            draw_data[i].g = balls[i].g;
-            draw_data[i].b = balls[i].b;
+            drawStar(renderer, balls[i].x, balls[i].y, balls[i].radius);
 
-            #pragma omp parallel for schedule(dynamic)
             for (int j = i + 1; j < num_balls; j++) {
                 if (useBallCollision(balls[i], balls[j], ignoreCollision)) {
-                    #pragma omp critical
                     ballCollisionManager(balls[i], balls[j]);
                 }
             }
         }
-
-        // Dibujar las estrellas
-        #pragma omp parallel for schedule(dynamic)
-        for (const auto& data : draw_data) {
-            SDL_SetRenderDrawColor(renderer, data.r, data.g, data.b, 255);
-            #pragma omp critical
-            drawStar(renderer, data.x, data.y, data.radius);
-        }
-
-        // Draw the FPS counter
-        frame_count++;
-        Uint32 elapsed_time = SDL_GetTicks() - start_time;
-        if (elapsed_time >= 1000) {
-            fps = frame_count;
-            frame_count = 0;
-            start_time = SDL_GetTicks();
-        }
+    }
+    // Draw the FPS counter
+    frame_count++;
+    Uint32 elapsed_time = SDL_GetTicks() - start_time;
+    if (elapsed_time >= 1000) {
+        fps = frame_count;
+        frame_count = 0;
+        start_time = SDL_GetTicks();
+    }
 
     SDL_Color color = {255, 255, 255};
     std::string fps_text = "FPS: " + std::to_string(fps);
@@ -366,13 +302,9 @@ int main(int argc, char* argv[]) {
 
     // Update the screen
     SDL_RenderPresent(renderer);
-    total_frames++;
     }
-    // Calcular el promedio de frames por segundo
-    Uint32 program_elapsed_time = SDL_GetTicks() - program_start_time;
-    float avg_fps = static_cast<float>(total_frames) / (program_elapsed_time / 1000.0f);
-    std::cout << "Promedio de FPS: " << avg_fps << std::endl;
 
+    delete[] balls; // Libera la memoria dinámica asignada al array de bolas
     // Clean up
     TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);

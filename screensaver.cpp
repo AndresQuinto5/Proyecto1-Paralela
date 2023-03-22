@@ -10,10 +10,15 @@ const int SCREEN_HEIGHT = 480;
 const int BALL_RADIUS = 30;
 const float GRAVITY = 200.0f;
 const float BOUNCE_FACTOR = 0.6f;
-const float BALL_COLLISION_FACTOR = 0.6f;
+const float BALL_COLLISION_FACTOR = 0.8f;
+
+
+//Herramientas para calcular el tiempo
+Uint32 start_time_operations, end_time_operations;
+Uint64 total_time_operations = 0;
+
 
 Uint32 start_time_collision = SDL_GetTicks();
-
 struct Ball {
     int x, y, dx, dy, bounces, radius;
     Uint8 r, g, b;
@@ -48,6 +53,12 @@ void drawStar(SDL_Renderer* renderer, int x, int y, int radius) {
     points[num_points * 2] = points[0];
     SDL_RenderDrawLines(renderer, points, num_points * 2 + 1);
 }
+//Nueva estructura para almacenar informacion de las colisiones
+struct Collision {
+    int id1, id2;
+    Uint32 timestamp;
+};
+
 
 /*
 
@@ -123,6 +134,11 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow("Screensaver", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    //Calculo de frames avg
+    // Agregar contador de frames totales y tiempo de inicio
+    int total_frames = 0;
+    Uint32 program_start_time = SDL_GetTicks();
+
     // Initialize variables for FPS counter
     Uint32 start_time = SDL_GetTicks();
     int frame_count = 0;
@@ -145,7 +161,10 @@ int main(int argc, char* argv[]) {
     }
 
     // Set up an array to hold the positions and velocities of each ball
-    Ball balls[num_balls];
+    //Ball balls[num_balls]; memoria en stack
+    //memoria dinamica en heap
+    Ball* balls = nullptr;
+    balls = new Ball[num_balls];
     // Initialize the positions and velocities of each ball
     srand(time(0)); // Seed the random number generator with 0
     for (int i = 0; i < num_balls; i++) {
@@ -173,12 +192,14 @@ while (!quit) {
         }
     }
     Uint32 elapsed_time_collision = SDL_GetTicks() - start_time_collision;
-    bool ignoreCollision = elapsed_time_collision < 3000;
+    bool ignoreCollision = elapsed_time_collision < 5000;
 
     // Clear the screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     // Draw the balls
+    //registramos el tiempo de inicio de las operaciones
+    start_time_operations = SDL_GetTicks();
     for (int i = 0; i < num_balls; i++) {
         // Update position
         balls[i].x += balls[i].dx / 60;
@@ -200,8 +221,8 @@ while (!quit) {
         for (int j = i + 1; j < num_balls; j++) {
             Uint32 elapsed_time_collision_i = SDL_GetTicks() - balls[i].start_time_collision;
             Uint32 elapsed_time_collision_j = SDL_GetTicks() - balls[j].start_time_collision;
-            bool ignoreCollision_i = elapsed_time_collision_i < 3000;
-            bool ignoreCollision_j = elapsed_time_collision_j < 3000;
+            bool ignoreCollision_i = elapsed_time_collision_i < 5000;
+            bool ignoreCollision_j = elapsed_time_collision_j < 5000;
             bool ignoreCollision = ignoreCollision_i || ignoreCollision_j;
             
             if (useBallCollision(balls[i], balls[j], ignoreCollision)) {
@@ -295,11 +316,15 @@ while (!quit) {
                 ballCollisionManager(balls[i], balls[j]);
             }
         }
+        
     }
+    end_time_operations = SDL_GetTicks();
+    total_time_operations += (end_time_operations - start_time_operations);
+
 
     // Draw the FPS counter
     frame_count++;
-    Uint32 elapsed_time = SDL_GetTicks() - start_time;
+    Uint32 elapsed_time = SDL_GetTicks() - start_time;    
     if (elapsed_time >= 1000) {
         fps = frame_count;
         frame_count = 0;
@@ -317,8 +342,15 @@ while (!quit) {
 
     // Update the screen
     SDL_RenderPresent(renderer);
+    total_frames++;  // Incrementar contador de frames totales
     }
+    Uint32 program_elapsed_time = SDL_GetTicks() - program_start_time;
+    float avg_fps = static_cast<float>(total_frames) / (program_elapsed_time / 1000.0f);
+    std::cout << "Promedio de FPS: " << avg_fps << std::endl;
 
+    std::cout << "Total time for operations: " << total_time_operations << " ms" << std::endl;
+
+    delete[] balls; // Libera la memoria dinámica asignada al array de bolas
     // Clean up
     TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
